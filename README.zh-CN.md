@@ -2,8 +2,8 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 
-一个用于 **ComfyUI 组开关快速配置** 的插件。  
-目标是在同一工作流中，通过 `int` 索引快速切换不同“组开关配置（Preset）”，以实现节点 **bypass（启用/忽略）** 状态的一键切换。
+一个用于 **ComfyUI 工作流快速切换** 的插件。  
+目标是在同一工作流中，通过 `int` 索引快速切换不同“套装（Preset）”，优先实现节点 **bypass（启用/忽略）** 状态切换，再逐步扩展到参数快照与连线切换。
 
 ## 🌐 语言切换
 
@@ -12,7 +12,7 @@
 
 ## 项目状态
 
-- 当前版本：**组开关快速配置器已可用（bypass 套装记录/应用 + index 自动切换）**
+- 当前阶段：**Phase 1 已实现（bypass 套装记录/应用 + index 自动切换）**
 
 ## 功能特性
 
@@ -79,7 +79,7 @@ comfyui_workflow_preset_switch/
 
 ## 已知限制
 
-- 当前聚焦节点 bypass/mode 的组开关配置。
+- 当前仅切换 bypass/mode，不包含参数快照与连线切换。
 - 套装按 node id 恢复；若节点已删除会跳过并在控制台告警。
 
 ## 开源协议

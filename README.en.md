@@ -2,8 +2,8 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 
-A plugin for **fast group-toggle configuration in ComfyUI workflows**.  
-It allows you to switch between multiple workflow preset configurations using an `int` index in a single workflow, focusing on one-click node **bypass / mode** state switching.
+A plugin for **fast workflow switching in ComfyUI**.  
+The goal is to quickly switch between different workflow presets in a single workflow using an `int` index. It prioritizes node **bypass (enable/ignore)** state switching first, and can be gradually extended to parameter snapshots and link switching.
 
 ## 🌐 Language
 
@@ -12,7 +12,7 @@ It allows you to switch between multiple workflow preset configurations using an
 
 ## Project Status
 
-- Current release: **Group-toggle quick configurator is available** (record/apply bypass presets + auto-apply by index)
+- Current stage: **Phase 1 implemented** (record/apply bypass presets + auto-apply by index)
 
 ## Features
 
@@ -79,7 +79,7 @@ comfyui_workflow_preset_switch/
 
 ## Known Limitations
 
-- Current version focuses on bypass/mode group-toggle configurations.
+- Current version only switches bypass/mode.
 - Presets are restored by node id; missing nodes are skipped with console warnings.
 
 ## License
