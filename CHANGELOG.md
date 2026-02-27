@@ -36,3 +36,19 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Renamed frontend extension identifiers:
   - `comfyui.workflow_preset_switch` -> `comfyui.preset_switch`
   - `comfyui.fast_group_manager` -> `comfyui.preset_group_editor`
+
+## [0.2.1] - 2026-02-27
+
+### Added
+- `Preset Switch` UI improvements:
+  - Added `Preset Browser` panel (clickable preset list).
+  - Added `Rename Current` for preset naming.
+
+### Changed
+- `Preset Group Editor` terminology and labels updated:
+  - `Bypass` Chinese label: `旁路` -> `绕过`.
+  - `Muted` Chinese label: `静音` -> `停用`.
+- `Preset Group Editor` compatibility output:
+  - `OPT_CONNECTION` is kept for compatibility but hidden in UI by default.
+- Documentation refresh for release readiness:
+  - Updated `README.md`, `README.zh-CN.md`, `README.en.md` to match current behavior and terms.

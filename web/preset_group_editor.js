@@ -189,6 +189,57 @@ function drawCircle(ctx, x, y, r, color, active) {
   ctx.stroke();
 }
 
+function drawRoundedRectPath(ctx, x, y, w, h, r) {
+  const rr = Math.max(0, Math.min(r, Math.min(w, h) * 0.5));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
+}
+
+function getControlLayout(width, showNav) {
+  const margin = 10;
+  const colWidth = 72;
+  const navWidth = showNav ? 86 : 0;
+  const right = width - margin;
+
+  const navLeft = right - navWidth;
+  const disableLeft = navLeft - colWidth;
+  const bypassLeft = disableLeft - colWidth;
+  const enableLeft = bypassLeft - colWidth;
+  const nameLeft = margin + 10;
+  const nameRight = enableLeft - 8;
+
+  const enableX = enableLeft + colWidth * 0.5;
+  const bypassX = bypassLeft + colWidth * 0.5;
+  const disableX = disableLeft + colWidth * 0.5;
+  const navX = showNav ? navLeft + navWidth * 0.5 : null;
+
+  return {
+    margin,
+    colWidth,
+    navWidth,
+    nameLeft,
+    nameRight,
+    enableLeft,
+    bypassLeft,
+    disableLeft,
+    navLeft,
+    enableX,
+    bypassX,
+    disableX,
+    navX,
+    separators: [nameRight, bypassLeft, disableLeft, navLeft],
+  };
+}
+
 function fitLabel(ctx, label, maxWidth) {
   if (ctx.measureText(label).width <= maxWidth) return label;
   let s = label;
@@ -196,6 +247,60 @@ function fitLabel(ctx, label, maxWidth) {
     s = s.slice(0, -1);
   }
   return `${s}…`;
+}
+
+function createGroupHeaderWidget(node) {
+  return {
+    type: "fgm_group_header",
+    name: "Group Header",
+    options: { serialize: false },
+    __fgmHeader: true,
+    computeSize(width) {
+      return [Math.max(240, width - 20), 22];
+    },
+    draw(ctx, _node, width, y, h) {
+      const showNav = node?.properties?.[PROPERTY_SHOW_NAV] !== false;
+      const layout = getControlLayout(width, showNav);
+      const margin = 6;
+
+      drawRoundedRectPath(ctx, margin, y + 1, width - margin * 2, h - 2, 4);
+      ctx.fillStyle = "#2a2f36";
+      ctx.fill();
+      ctx.strokeStyle = "#4a5568";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.strokeStyle = "#4a5568";
+      ctx.lineWidth = 1;
+      for (const x of layout.separators) {
+        if (!showNav && x === layout.navLeft) continue;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 2);
+        ctx.lineTo(x, y + h - 2);
+        ctx.stroke();
+      }
+
+      ctx.font = "bold 11px Arial";
+      ctx.fillStyle = "#cfd6e6";
+      ctx.textAlign = "left";
+      ctx.fillText("Group Name 分组", layout.nameLeft, y + h * 0.68);
+
+      ctx.font = "11px Arial";
+      ctx.textAlign = "center";
+      const colTextMax = Math.max(24, layout.colWidth - 8);
+      ctx.fillStyle = "#7ee08f";
+      ctx.fillText(fitLabel(ctx, "Enable 启用", colTextMax), layout.enableX, y + h * 0.68);
+      ctx.fillStyle = "#f6d272";
+      ctx.fillText(fitLabel(ctx, "Bypass 绕过", colTextMax), layout.bypassX, y + h * 0.68);
+      ctx.fillStyle = "#e88585";
+      ctx.fillText(fitLabel(ctx, "Muted 停用", colTextMax), layout.disableX, y + h * 0.68);
+      if (showNav) {
+        const navTextMax = Math.max(28, layout.navWidth - 8);
+        ctx.fillStyle = "#9ab3dd";
+        ctx.fillText(fitLabel(ctx, "Navigate 定位", navTextMax), layout.navX, y + h * 0.68);
+      }
+    },
+  };
 }
 
 function createGroupRowWidget(node, group) {
@@ -212,39 +317,53 @@ function createGroupRowWidget(node, group) {
       return [Math.max(240, width - 20), 24];
     },
     draw(ctx, _node, width, y, h) {
-      const margin = 10;
       const centerY = y + h * 0.5;
       const r = 5;
-      const spacing = 18;
-      let x = width - 26;
-
       const showNav = node?.properties?.[PROPERTY_SHOW_NAV] !== false;
-      const navHit = showNav ? { x: x - 8, y: centerY - 6, w: 12, h: 12 } : null;
+      const layout = getControlLayout(width, showNav);
+
+      drawRoundedRectPath(ctx, 6, y + 2, width - 12, h - 4, 6);
+      ctx.fillStyle = "#252a31";
+      ctx.fill();
+      ctx.strokeStyle = "#3d4656";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.strokeStyle = "#3d4656";
+      ctx.lineWidth = 1;
+      for (const x of layout.separators) {
+        if (!showNav && x === layout.navLeft) continue;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 3);
+        ctx.lineTo(x, y + h - 3);
+        ctx.stroke();
+      }
+
+      const navHit = showNav
+        ? { x: layout.navLeft, y: y + 2, w: layout.navWidth, h: h - 4 }
+        : null;
 
       if (showNav) {
         ctx.fillStyle = "#8aa2cc";
         ctx.beginPath();
-        ctx.moveTo(x - 6, centerY - 5);
-        ctx.lineTo(x + 2, centerY);
-        ctx.lineTo(x - 6, centerY + 5);
+        ctx.moveTo(layout.navX - 6, centerY - 5);
+        ctx.lineTo(layout.navX + 2, centerY);
+        ctx.lineTo(layout.navX - 6, centerY + 5);
         ctx.closePath();
         ctx.fill();
-        x -= 18;
       }
 
-      const disableX = x;
-      const bypassX = x - spacing;
-      const enableX = x - spacing * 2;
+      const { enableX, bypassX, disableX } = layout;
       drawCircle(ctx, enableX, centerY, r, "#53d26a", row.__state === "enable");
       drawCircle(ctx, bypassX, centerY, r, "#f1c24d", row.__state === "bypass");
       drawCircle(ctx, disableX, centerY, r, "#cf5e5e", row.__state === "disable");
 
-      const label = String(group?.title || "(untitled group)");
-      const maxWidth = Math.max(50, enableX - margin - 8);
+      const label = String(group?.title || "Untitled Group 未命名分组");
+      const maxWidth = Math.max(40, layout.nameRight - layout.nameLeft - 8);
       ctx.fillStyle = "#ddd";
       ctx.font = "12px Arial";
       ctx.textAlign = "left";
-      ctx.fillText(fitLabel(ctx, label, maxWidth), margin, y + h * 0.68);
+      ctx.fillText(fitLabel(ctx, label, maxWidth), layout.nameLeft, y + h * 0.68);
 
       row.__hitAreas = {
         enable: { x: enableX - r - 2, y: centerY - r - 2, w: r * 2 + 4, h: r * 2 + 4 },
@@ -351,7 +470,10 @@ function refreshGroupWidgets(node) {
   }
 
   // 追加/重排
-  const fixedWidgets = (node.widgets || []).filter((w) => !w?.__fgmGroupRow);
+  const fixedWidgets = (node.widgets || []).filter((w) => !w?.__fgmGroupRow && !w?.__fgmHeader);
+  const existingHeader = (node.widgets || []).find((w) => w?.__fgmHeader);
+  const headerWidget = existingHeader || createGroupHeaderWidget(node);
+
   const groupWidgets = [];
   for (const group of groups) {
     let row = existingMap.get(group);
@@ -362,7 +484,7 @@ function refreshGroupWidgets(node) {
     row.__state = row.value;
     groupWidgets.push(row);
   }
-  node.widgets = [...fixedWidgets, ...groupWidgets];
+  node.widgets = [...fixedWidgets, headerWidget, ...groupWidgets];
   node.setDirtyCanvas?.(true, true);
 }
 
@@ -372,13 +494,20 @@ function injectNodeUI(node) {
   ensureProperties(node);
 
   if (!Array.isArray(node.outputs) || !node.outputs.length) {
-    node.addOutput?.("OPT_CONNECTION", "*");
+    const out = node.addOutput?.("OPT_CONNECTION", "*");
+    if (out && typeof out === "object") out.hidden = true;
   }
 
-  node.addWidget?.("button", "Enable All", null, () => setBatchState(node, "enable"));
-  node.addWidget?.("button", "Bypass All", null, () => setBatchState(node, "bypass"));
-  node.addWidget?.("button", "Disable All", null, () => setBatchState(node, "disable"));
-  node.addWidget?.("button", "Refresh Groups", null, () => refreshGroupWidgets(node));
+  for (const out of node.outputs || []) {
+    if (out?.name === "OPT_CONNECTION") {
+      out.hidden = true;
+    }
+  }
+
+  node.addWidget?.("button", "Enable All 全部启用", null, () => setBatchState(node, "enable"));
+  node.addWidget?.("button", "Bypass All 全部绕过", null, () => setBatchState(node, "bypass"));
+  node.addWidget?.("button", "Muted All 全部停用", null, () => setBatchState(node, "disable"));
+  node.addWidget?.("button", "Refresh Groups 刷新分组", null, () => refreshGroupWidgets(node));
 
   refreshGroupWidgets(node);
 }

@@ -128,7 +128,7 @@ function captureNodeBypassState(node) {
 }
 
 function defaultPresetName(index) {
-  return `Preset ${normalizeIndex(index)}`;
+  return `Preset ${normalizeIndex(index)} 预设`;
 }
 
 function getPresetName(index) {
@@ -287,7 +287,7 @@ function buildPresetPanelRows(current, indexes) {
   const rows = [];
 
   if (!indexes.length) {
-    rows.push({ label: "(暂无已记录状态)", clickable: false, selected: false });
+    rows.push({ label: "No Recorded Presets 暂无已记录状态", clickable: false, selected: false });
     return rows;
   }
 
@@ -311,7 +311,7 @@ function ensurePresetPanelWidget(node) {
 
   node.__wpsPresetPanelWidget = node.addCustomWidget({
     type: "wps_preset_panel",
-    name: "Preset Browser",
+    name: "Preset Browser 预设浏览器",
     options: { serialize: false },
     computeSize(width) {
       const rows = node.__wpsPanelRows?.length || 3;
@@ -343,7 +343,8 @@ function ensurePresetPanelWidget(node) {
         const textY = rowY + PANEL_ROW_HEIGHT * 0.68;
 
         if (row.selected) {
-          ctx.fillStyle = "#f2f2f2";
+          // 选中高亮改为中灰，进一步降低亮度
+          ctx.fillStyle = "#9aa0a8";
           ctx.fillRect(x + 6, rowY + 2, width - 12, PANEL_ROW_HEIGHT - 4);
           ctx.fillStyle = "#111111";
         } else {
@@ -424,30 +425,30 @@ function injectNodeButtons(node) {
   node.__wpsLastAppliedIndex = null;
   ensurePresetPanelWidget(node);
 
-  node.addWidget("button", "Record Current", null, () => {
+  node.addWidget("button", "Record Current 记录当前", null, () => {
     const idx = getPresetIndexFromNode(node);
     recordPreset(idx);
     refreshPresetWidgets(node);
   });
 
-  node.addWidget("button", "Apply Current", null, () => {
+  node.addWidget("button", "Apply Current 应用当前", null, () => {
     const idx = getPresetIndexFromNode(node);
     switchPresetByIndex(node, idx, { syncIndexWidget: false });
   });
 
-  node.addWidget("button", "Prev Preset", null, () => {
+  node.addWidget("button", "Prev Preset 上一个预设", null, () => {
     const idx = getPresetIndexFromNode(node);
     const prev = prevPresetIndex(idx);
     switchPresetByIndex(node, prev);
   });
 
-  node.addWidget("button", "Next Preset", null, () => {
+  node.addWidget("button", "Next Preset 下一个预设", null, () => {
     const idx = getPresetIndexFromNode(node);
     const next = nextPresetIndex(idx);
     switchPresetByIndex(node, next);
   });
 
-  node.__wpsNameWidget = node.addWidget("string", "Preset Name", "", (value) => {
+  node.__wpsNameWidget = node.addWidget("string", "Preset Name 预设名称", "", (value) => {
     if (node.__wpsUpdatingNameWidget) return;
 
     const idx = getPresetIndexFromNode(node);
@@ -457,7 +458,7 @@ function injectNodeButtons(node) {
     }
     refreshPresetWidgets(node);
   });
-  node.__wpsNameWidget.name = "Rename Current";
+  node.__wpsNameWidget.name = "Rename Current 重命名当前预设";
 
   refreshPresetWidgets(node);
 }
