@@ -37,6 +37,7 @@
 4. 持久化
    - 套装数据写入 `workflow.graph.extra.comfyui_workflow_state_presets`，随工作流保存
    - 预设快照按节点保存 `mode` 与 `bypass` 两类状态
+   - 对于“未被该 preset 记录的新节点”，默认策略为**绕过（bypass）**，避免污染旧 preset 行为（可通过 `options.onUntrackedNode` 调整为 `preserve/enable/bypass`）
 
 5. 新增节点：`Preset Group Editor`
    - 用于统一管理工作流 Group 内节点的三态切换：
@@ -99,6 +100,7 @@ comfyui_workflow_state_presets/
 
 - 当前仅切换 mode/bypass，不包含参数快照与连线切换。
 - 套装按 node id 恢复；若节点已删除会跳过并在控制台告警。
+- 新增节点在旧 preset 中默认按“绕过”处理；如需兼容旧行为可将 `onUntrackedNode` 设为 `preserve`。
 - 目前套装仅为工作流级存储（写入 workflow metadata），尚未提供全局共享预设库。
 
 ## 开源协议

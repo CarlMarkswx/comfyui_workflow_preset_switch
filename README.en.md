@@ -37,6 +37,7 @@ The goal is to quickly switch between different workflow presets in a single wor
 4. Persistence
    - Presets are stored in `workflow.graph.extra.comfyui_workflow_state_presets` and saved with the workflow
    - Snapshot data stores both `mode` and `bypass` per node
+   - For newly added nodes that were not recorded in a preset, the default policy is **bypass** to avoid changing old preset behavior unexpectedly (configurable via `options.onUntrackedNode` with `preserve/enable/bypass`)
 
 5. New node: `Preset Group Editor`
    - Manage Group node states in tri-state mode:
@@ -99,6 +100,7 @@ comfyui_workflow_state_presets/
 
 - Current version only switches mode/bypass.
 - Presets are restored by node id; missing nodes are skipped with console warnings.
+- New nodes in old presets are now handled as bypass by default; set `onUntrackedNode` to `preserve` if you need legacy behavior.
 - Presets are workflow-scoped (saved in workflow metadata), no global shared preset library yet.
 
 ## License

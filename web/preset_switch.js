@@ -8,6 +8,10 @@ const EXTENSION_NAME = "comfyui.preset_switch";
 const TARGET_NODE_NAME = "PresetSwitch";
 const STORE_KEY = "comfyui_workflow_state_presets";
 const STORE_VERSION = 1;
+const MODE_BYPASS = 4;
+const MODE_ENABLE = Number.isFinite(globalThis?.LiteGraph?.ALWAYS)
+  ? globalThis.LiteGraph.ALWAYS
+  : 0;
 
 function getGraph() {
   return app?.graph ?? null;
@@ -24,8 +28,15 @@ function ensureStore() {
     options: {
       onMissingNode: "skip",
       indexOutOfRange: "warn",
+      onUntrackedNode: "bypass",
     },
   };
+
+  const options = graph.extra[STORE_KEY].options || {};
+  if (!options.onMissingNode) options.onMissingNode = "skip";
+  if (!options.indexOutOfRange) options.indexOutOfRange = "warn";
+  if (!options.onUntrackedNode) options.onUntrackedNode = "bypass";
+  graph.extra[STORE_KEY].options = options;
 
   return graph.extra[STORE_KEY];
 }
@@ -241,6 +252,24 @@ function applyStateToNode(node, state) {
   }
 }
 
+function applyUntrackedNodePolicy(node, policy) {
+  if (!node) return;
+
+  if (policy === "bypass") {
+    node.mode = MODE_BYPASS;
+    node.bypass = true;
+  } else if (policy === "enable") {
+    node.mode = MODE_ENABLE;
+    node.bypass = false;
+  } else {
+    return;
+  }
+
+  if (typeof node.setDirtyCanvas === "function") {
+    node.setDirtyCanvas(true, true);
+  }
+}
+
 function applyPreset(index) {
   const store = ensureStore();
   if (!store) return false;
@@ -256,6 +285,7 @@ function applyPreset(index) {
   }
 
   let missingCount = 0;
+  const trackedNodeIds = new Set(Object.keys(preset.nodes || {}));
   for (const [nodeId, state] of Object.entries(preset.nodes || {})) {
     const node = app.graph?.getNodeById?.(Number(nodeId));
     if (!node) {
@@ -263,6 +293,15 @@ function applyPreset(index) {
       continue;
     }
     applyStateToNode(node, state);
+  }
+
+  const untrackedPolicy = String(store.options?.onUntrackedNode || "bypass");
+  if (untrackedPolicy !== "preserve") {
+    for (const node of getAllNodes()) {
+      if (!node || typeof node.id === "undefined") continue;
+      if (trackedNodeIds.has(String(node.id))) continue;
+      applyUntrackedNodePolicy(node, untrackedPolicy);
+    }
   }
 
   if (missingCount > 0 && store.options?.onMissingNode === "skip") {

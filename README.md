@@ -37,6 +37,7 @@ You can record the current node bypass/mode status as a preset, and switch betwe
 - Workflow-level persistence via:
   - `workflow.graph.extra.comfyui_workflow_state_presets`
 - Preset snapshot contains both `mode` and `bypass` states per node
+- Untracked nodes (new nodes not present in an old preset) default to **bypass** to avoid unintended behavior changes (`options.onUntrackedNode`: `preserve/enable/bypass`)
 - Add node: `Preset Group Editor`
   - Group tri-state control: Enable / Bypass / Disable
   - Supports filtering, sorting, navigation, and restriction strategies
@@ -99,6 +100,7 @@ comfyui_workflow_state_presets/
 - Current version focuses on mode/bypass switching only.
 - Parameter snapshots and link switching are planned for future phases.
 - Presets restore by node id; missing nodes are skipped with warnings.
+- Untracked nodes in old presets are bypassed by default; set `onUntrackedNode` to `preserve` for legacy behavior.
 - Presets are currently workflow-scoped (saved in workflow metadata), not a global preset library.
 
 ---
