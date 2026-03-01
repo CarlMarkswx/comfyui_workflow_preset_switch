@@ -135,6 +135,14 @@ function isDefaultPresetName(name, index) {
   return String(name ?? "") === defaultPresetName(index);
 }
 
+function clonePresetForIndex(preset, oldIndex, newIndex) {
+  const nextPreset = { ...(preset || {}) };
+  if (isDefaultPresetName(nextPreset.name, oldIndex)) {
+    nextPreset.name = defaultPresetName(newIndex);
+  }
+  return nextPreset;
+}
+
 function getPresetName(index) {
   const store = ensureStore();
   if (!store) return defaultPresetName(index);
@@ -156,6 +164,30 @@ function setPresetName(index, name) {
   preset.name = normalized;
   preset.updated_at = Date.now();
   app.graph?.setDirtyCanvas(true, true);
+  return true;
+}
+
+function promptRenamePreset(node, targetIndex = null, triggerEvent = null) {
+  const idx = targetIndex == null ? getPresetIndexFromNode(node) : normalizeIndex(targetIndex);
+  const indexes = listPresetIndexes();
+  if (!indexes.includes(idx)) {
+    console.warn(`[${EXTENSION_NAME}] preset #${idx} not found, cannot rename`);
+    return false;
+  }
+
+  const currentName = getPresetName(idx);
+  const canvas = app.canvas;
+  if (typeof canvas?.prompt !== "function") {
+    console.warn(`[${EXTENSION_NAME}] canvas.prompt unavailable, rename aborted`);
+    return false;
+  }
+
+  canvas.prompt("Rename Preset 重命名预设", currentName, (value) => {
+    const ok = setPresetName(idx, value);
+    if (!ok) return;
+    refreshPresetWidgets(node);
+  }, triggerEvent);
+
   return true;
 }
 
@@ -271,11 +303,7 @@ function deletePreset(index) {
     const oldKey = String(oldIdx);
     const preset = store.presets[oldKey];
     const newIdx = oldIdx > removeIdx ? oldIdx - 1 : oldIdx;
-    const nextPreset = { ...(preset || {}) };
-
-    if (isDefaultPresetName(nextPreset.name, oldIdx)) {
-      nextPreset.name = defaultPresetName(newIdx);
-    }
+    const nextPreset = clonePresetForIndex(preset, oldIdx, newIdx);
 
     nextPresets[String(newIdx)] = nextPreset;
   }
@@ -283,6 +311,48 @@ function deletePreset(index) {
   store.presets = nextPresets;
   app.graph?.setDirtyCanvas(true, true);
   console.log(`[${EXTENSION_NAME}] deleted preset #${removeIdx} and reindexed presets`);
+  return true;
+}
+
+function movePresetIndex(fromIndex, toIndex) {
+  const store = ensureStore();
+  if (!store) return false;
+
+  const fromIdx = normalizeIndex(fromIndex);
+  const toIdx = normalizeIndex(toIndex);
+  const fromKey = String(fromIdx);
+
+  if (!store.presets?.[fromKey]) return false;
+  if (fromIdx === toIdx) return true;
+
+  const movingPreset = store.presets[fromKey];
+  const nextPresets = {};
+  const indexes = listPresetIndexes();
+
+  if (!indexes.length) return false;
+
+  const maxIdx = indexes[indexes.length - 1];
+  const boundedTo = Math.min(toIdx, maxIdx);
+
+  for (const oldIdx of indexes) {
+    if (oldIdx === fromIdx) continue;
+
+    let newIdx = oldIdx;
+    if (fromIdx < boundedTo && oldIdx > fromIdx && oldIdx <= boundedTo) {
+      newIdx = oldIdx - 1;
+    } else if (fromIdx > boundedTo && oldIdx >= boundedTo && oldIdx < fromIdx) {
+      newIdx = oldIdx + 1;
+    }
+
+    const preset = store.presets[String(oldIdx)];
+    nextPresets[String(newIdx)] = clonePresetForIndex(preset, oldIdx, newIdx);
+  }
+
+  nextPresets[String(boundedTo)] = clonePresetForIndex(movingPreset, fromIdx, boundedTo);
+  store.presets = nextPresets;
+
+  app.graph?.setDirtyCanvas(true, true);
+  console.log(`[${EXTENSION_NAME}] moved preset #${fromIdx} to #${boundedTo}`);
   return true;
 }
 
@@ -366,6 +436,7 @@ function ensurePresetPanelWidget(node) {
       this.__wpsLastDrawY = y;
 
       const rows = node.__wpsPanelRows || [];
+      const dragState = node.__wpsPanelDragState || null;
       const x = 10;
       const width = widgetWidth - 20;
       const panelHeight = rows.length * PANEL_ROW_HEIGHT + PANEL_PADDING * 2;
@@ -386,6 +457,8 @@ function ensurePresetPanelWidget(node) {
         const row = rows[i];
         const rowY = y + PANEL_PADDING + i * PANEL_ROW_HEIGHT;
         const textY = rowY + PANEL_ROW_HEIGHT * 0.68;
+        const isDraggingRow = !!dragState?.active && row.index === dragState.fromIndex;
+        const isDropTarget = !!dragState?.active && row.index === dragState.overIndex;
 
         if (row.selected) {
           // 选中高亮改为中灰，进一步降低亮度
@@ -396,8 +469,20 @@ function ensurePresetPanelWidget(node) {
           ctx.fillStyle = row.clickable ? "#dfdfdf" : "#9ea1a6";
         }
 
+        if (isDraggingRow) {
+          ctx.fillStyle = "#3a4350";
+          ctx.fillRect(x + 6, rowY + 2, width - 12, PANEL_ROW_HEIGHT - 4);
+          ctx.fillStyle = "#e9edf5";
+        }
+
+        if (isDropTarget && dragState.fromIndex !== dragState.overIndex) {
+          ctx.strokeStyle = "#79a9ff";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + 6, rowY + 2, width - 12, PANEL_ROW_HEIGHT - 4);
+        }
+
         ctx.font = "13px Arial";
-        ctx.fillText(row.label, x + 12, textY);
+        ctx.fillText(`↕ ${row.label}`, x + 12, textY);
       }
 
       ctx.restore();
@@ -405,7 +490,11 @@ function ensurePresetPanelWidget(node) {
     mouse(event, pos, _node) {
       const rows = node.__wpsPanelRows || [];
       if (!rows.length) return false;
-      if (event.type !== "pointerdown" && event.type !== "mousedown") return false;
+      const eventType = event?.type;
+      const isDown = eventType === "pointerdown" || eventType === "mousedown";
+      const isMove = eventType === "pointermove" || eventType === "mousemove";
+      const isUp = eventType === "pointerup" || eventType === "mouseup";
+      if (!isDown && !isMove && !isUp) return false;
 
       const maxY = rows.length * PANEL_ROW_HEIGHT;
       const drawY = this.__wpsLastDrawY ?? 0;
@@ -418,11 +507,68 @@ function ensurePresetPanelWidget(node) {
 
       if (localY < 0) return false;
 
-      const rowIndex = Math.floor(localY / PANEL_ROW_HEIGHT);
-      const row = rows[rowIndex];
-      if (!row || !row.clickable || typeof row.index !== "number") return false;
+      const rowIndex = Math.max(0, Math.min(rows.length - 1, Math.floor(localY / PANEL_ROW_HEIGHT)));
+      const row = rows[rowIndex] || null;
 
-      switchPresetByIndex(node, row.index);
+      if (isDown) {
+        if (!row || !row.clickable || typeof row.index !== "number") return false;
+        node.__wpsPanelDragState = {
+          active: true,
+          fromIndex: row.index,
+          overIndex: row.index,
+          moved: false,
+        };
+        return true;
+      }
+
+      const dragState = node.__wpsPanelDragState;
+      if (!dragState?.active) return false;
+
+      if (isMove) {
+        if (row && row.clickable && typeof row.index === "number") {
+          dragState.overIndex = row.index;
+          dragState.moved = dragState.moved || dragState.overIndex !== dragState.fromIndex;
+          app.graph?.setDirtyCanvas(true, true);
+          return true;
+        }
+        return false;
+      }
+
+      // pointerup/mouseup
+      const fromIndex = dragState.fromIndex;
+      const overIndex = dragState.overIndex;
+      const moved = dragState.moved && typeof overIndex === "number" && overIndex !== fromIndex;
+      node.__wpsPanelDragState = null;
+
+      if (!moved) {
+        if (row && row.clickable && typeof row.index === "number") {
+          const now = Date.now();
+          const lastClickAt = node.__wpsPanelLastClickAt || 0;
+          const lastClickIndex = node.__wpsPanelLastClickIndex;
+          const isDoubleClick = lastClickIndex === row.index && now - lastClickAt <= 320;
+
+          node.__wpsPanelLastClickAt = now;
+          node.__wpsPanelLastClickIndex = row.index;
+
+          if (isDoubleClick) {
+            switchPresetByIndex(node, row.index, { syncIndexWidget: !isPresetInputLinked(node) });
+            promptRenamePreset(node, row.index, event);
+            return true;
+          }
+
+          switchPresetByIndex(node, row.index);
+          return true;
+        }
+        return false;
+      }
+
+      const ok = movePresetIndex(fromIndex, overIndex);
+      if (!ok) {
+        refreshPresetWidgets(node);
+        return true;
+      }
+
+      switchPresetByIndex(node, overIndex, { syncIndexWidget: !isPresetInputLinked(node) });
       return true;
     },
   });
@@ -446,15 +592,6 @@ function refreshPresetWidgets(node) {
   const indexes = listPresetIndexes();
   const panelSignature = buildPresetPanelSignature(current, indexes);
   const rows = buildPresetPanelRows(current, indexes);
-
-  if (node.__wpsNameWidget) {
-    const nextName = indexes.includes(current) ? getPresetName(current) : "";
-    if (node.__wpsNameWidget.value !== nextName) {
-      node.__wpsUpdatingNameWidget = true;
-      node.__wpsNameWidget.value = nextName;
-      node.__wpsUpdatingNameWidget = false;
-    }
-  }
 
   if (node.__wpsPresetPanelSignature === panelSignature) return;
   node.__wpsPresetPanelSignature = panelSignature;
@@ -509,18 +646,6 @@ function injectNodeButtons(node) {
     const next = nextPresetIndex(idx);
     switchPresetByIndex(node, next);
   });
-
-  node.__wpsNameWidget = node.addWidget("string", "Preset Name 预设名称", "", (value) => {
-    if (node.__wpsUpdatingNameWidget) return;
-
-    const idx = getPresetIndexFromNode(node);
-    const ok = setPresetName(idx, value);
-    if (!ok) {
-      console.warn(`[${EXTENSION_NAME}] preset #${idx} not found, cannot rename`);
-    }
-    refreshPresetWidgets(node);
-  });
-  node.__wpsNameWidget.name = "Rename Current 重命名当前预设";
 
   refreshPresetWidgets(node);
 }
