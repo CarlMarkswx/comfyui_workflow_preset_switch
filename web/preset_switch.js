@@ -1,4 +1,4 @@
-import { app } from "/scripts/app.js";
+import { app } from "../../../scripts/app.js";
 
 /**
  * Phase 1: bypass 套装记录/应用 + index 自动切换

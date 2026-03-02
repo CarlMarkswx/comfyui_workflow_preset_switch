@@ -1,4 +1,4 @@
-import { app } from "/scripts/app.js";
+import { app } from "../../../scripts/app.js";
 
 const EXTENSION_NAME = "comfyui.preset_group_editor";
 const TARGET_NODE_NAME = "PresetGroupEditor";
